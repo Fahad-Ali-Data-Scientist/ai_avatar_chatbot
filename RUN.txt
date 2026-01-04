@@ -1,0 +1,55 @@
+========================================
+TALKING AVATAR WEB APP - RUN INSTRUCTIONS
+========================================
+
+STEP 1: Install Dependencies
+-----------------------------
+pip install flask edge-tts opencv-python numpy torch torchvision pillow imageio scipy
+
+STEP 2: Setup Wav2Lip (Optional - for video generation)
+--------------------------------------------------------
+If you want video lip-sync (optional, audio-only works without this):
+
+- Run: setup_wav2lip.bat
+  OR
+- Clone: git clone https://github.com/Rudrabha/Wav2Lip.git
+- Download model to: Wav2Lip/checkpoints/wav2lip_gan.pth
+  From: https://huggingface.co/Nekochu/Wav2Lip/resolve/main/wav2lip_gan.pth
+
+STEP 3: Run the Application
+----------------------------
+python app.py
+
+STEP 4: Open Browser
+--------------------
+Open: http://localhost:5000
+
+========================================
+FEATURES
+========================================
+✓ Streaming text responses
+✓ Real-time avatar animation
+✓ Audio playback
+✓ Video lip-sync (if Wav2Lip configured)
+✓ Fast response time
+✓ Clean modern interface
+
+========================================
+USAGE
+========================================
+1. Type your question in the input box
+2. Press Enter or click Send
+3. Watch the text stream in real-time
+4. Avatar will speak with lip-sync
+5. Click suggestion buttons for quick questions
+
+========================================
+TROUBLESHOOTING
+========================================
+- Port 5000 in use: Change port in app.py (last line)
+- Slow video: Normal, takes 15-30 seconds
+- No video: Check Wav2Lip setup or use audio-only mode
+- librosa error: pip install librosa==0.9.2
+
+========================================
+

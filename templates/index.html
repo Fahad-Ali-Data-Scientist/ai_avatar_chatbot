@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aria - AI Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1 class="title">Aria</h1>
+            <p class="subtitle">Your personal AI assistant</p>
+        </div>
+
+        <!-- Avatar Section -->
+        <div class="avatar-container">
+            <div class="avatar-circle">
+                <video id="avatarVideo" class="avatar-video" muted playsinline></video>
+                <img id="avatarImage" class="avatar-image" src="" alt="Avatar">
+                <div class="loading-ring" id="loadingRing"></div>
+            </div>
+            <div class="status-indicator" id="statusIndicator"></div>
+            <p class="avatar-subtitle">Ask me anything</p>
+        </div>
+
+        <!-- Response Display -->
+        <div class="response-container" id="responseContainer">
+            <div class="response-text" id="responseText"></div>
+        </div>
+
+        <!-- Audio Player (hidden) -->
+        <audio id="audioPlayer" style="display:none;"></audio>
+
+        <!-- Input Section -->
+        <div class="input-container">
+            <button class="mic-btn" id="micBtn" title="Voice input (coming soon)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                    <line x1="8" y1="23" x2="16" y2="23"></line>
+                </svg>
+            </button>
+            <input type="text" 
+                   id="questionInput" 
+                   class="input-field" 
+                   placeholder="Type your message or click the mic..." 
+                   autocomplete="off">
+            <button class="send-btn" id="sendBtn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+                <span>Send</span>
+            </button>
+        </div>
+
+        <!-- Helper Text -->
+        <div class="helper-text">
+            Type a message or click the microphone to speak
+        </div>
+
+        <!-- Suggestions -->
+        <div class="suggestions" id="suggestions">
+            <button class="suggestion-btn" data-question="What is AI?">What is AI?</button>
+            <button class="suggestion-btn" data-question="What is machine learning?">What is machine learning?</button>
+            <button class="suggestion-btn" data-question="Hello">Say Hello</button>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
+
