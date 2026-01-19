@@ -2,9 +2,15 @@
 Talking Avatar Web App with Streaming Responses
 
 To Run:
-1. Install: pip install flask edge-tts opencv-python numpy torch torchvision pillow imageio scipy
+1. Install: pip install -r requirements.txt
 2. Run: python app.py
 3. Open: http://localhost:5000
+
+Features:
+- Multi-region TTS support (Edge TTS, Google TTS, Offline TTS)
+- Automatic fallback for blocked regions
+- Streaming responses
+- Wav2Lip integration
 """
 
 from flask import Flask, render_template, request, jsonify, Response, stream_with_context, send_file
@@ -17,10 +23,34 @@ import json
 from pathlib import Path
 from typing import Generator
 import threading
-import edge_tts
 import cv2
 import numpy as np
 from queue import Queue
+
+# Import TTS libraries with fallback support
+TTS_ENGINE = None
+try:
+    import edge_tts
+    TTS_ENGINE = "edge"
+    print("✓ Edge TTS loaded")
+except ImportError:
+    print("⚠ Edge TTS not available")
+
+if TTS_ENGINE is None:
+    try:
+        from gtts import gTTS
+        TTS_ENGINE = "gtts"
+        print("✓ Google TTS loaded")
+    except ImportError:
+        print("⚠ Google TTS not available")
+
+if TTS_ENGINE is None:
+    try:
+        import pyttsx3
+        TTS_ENGINE = "pyttsx3"
+        print("✓ Offline TTS loaded")
+    except ImportError:
+        print("⚠ No TTS engine available!")
 
 app = Flask(__name__)
 
@@ -108,18 +138,67 @@ def generate_response_chunks(text: str, chunk_size: int = 30) -> Generator[str, 
         time.sleep(0.1)
 
 
-async def text_to_audio_async(text: str, output_path: str, voice: str = "en-US-AriaNeural"):
+async def text_to_audio_edge_async(text: str, output_path: str, voice: str = "en-US-AriaNeural"):
     """Convert text to audio using Edge TTS."""
+    import edge_tts
     communicate = edge_tts.Communicate(text, voice)
     await communicate.save(output_path)
 
 
+def text_to_audio_gtts(text: str, output_path: str):
+    """Convert text to audio using Google TTS."""
+    from gtts import gTTS
+    tts = gTTS(text=text, lang='en', slow=False)
+    tts.save(output_path)
+
+
+def text_to_audio_pyttsx3(text: str, output_path: str):
+    """Convert text to audio using pyttsx3 (offline)."""
+    import pyttsx3
+    engine = pyttsx3.init()
+    engine.save_to_file(text, output_path)
+    engine.runAndWait()
+
+
 def text_to_audio(text: str, output_path: str):
-    """Sync wrapper for text to audio conversion."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(text_to_audio_async(text, output_path))
-    loop.close()
+    """
+    Convert text to audio with automatic fallback support.
+    Tries Edge TTS first, then Google TTS, then offline TTS.
+    """
+    global TTS_ENGINE
+    
+    # Try Edge TTS first (if available or if we think it's available)
+    if TTS_ENGINE == "edge" or TTS_ENGINE is None:
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(text_to_audio_edge_async(text, output_path))
+                TTS_ENGINE = "edge"  # Confirm it works
+                return
+            finally:
+                loop.close()
+        except Exception as e:
+            print(f"  ⚠ Edge TTS failed: {str(e)[:80]}")
+            TTS_ENGINE = "gtts"  # Switch to fallback
+    
+    # Try Google TTS
+    if TTS_ENGINE == "gtts":
+        try:
+            text_to_audio_gtts(text, output_path)
+            return
+        except Exception as e:
+            print(f"  ⚠ Google TTS failed: {str(e)[:80]}")
+            TTS_ENGINE = "pyttsx3"  # Switch to last resort
+    
+    # Last resort: offline TTS
+    if TTS_ENGINE == "pyttsx3":
+        try:
+            text_to_audio_pyttsx3(text, output_path)
+            return
+        except Exception as e:
+            print(f"  ✗ All TTS engines failed: {str(e)[:80]}")
+            raise Exception("No TTS engine available")
 
 
 def generate_video(audio_path: str, output_path: str, avatar_path: str):
@@ -277,6 +356,17 @@ if __name__ == '__main__':
     print("="*60)
     print(f"📁 Output directory: {OUTPUT_DIR.absolute()}")
     print(f"🎭 Avatar: {create_avatar_image()}")
+    
+    # Check TTS Engine
+    if TTS_ENGINE:
+        engine_names = {
+            "edge": "Edge TTS (Microsoft)",
+            "gtts": "Google TTS",
+            "pyttsx3": "Offline TTS"
+        }
+        print(f"🔊 TTS Engine: {engine_names.get(TTS_ENGINE, TTS_ENGINE)} (auto-fallback enabled)")
+    else:
+        print("⚠️  TTS: No engine available - install edge-tts, gtts, or pyttsx3")
     
     if WAV2LIP_PATH.exists() and WAV2LIP_CHECKPOINT.exists():
         print("✅ Wav2Lip: Ready")

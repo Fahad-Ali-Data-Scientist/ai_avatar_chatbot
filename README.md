@@ -2,6 +2,13 @@
 
 Complete implementation of a talking avatar chatbot that converts text responses into lip-synced videos.
 
+## 🌍 NEW: Multi-Region TTS Support
+
+**✅ Fixed:** Edge TTS 403 errors in blocked regions  
+**✅ Works globally:** Automatic fallback to Google TTS if Edge TTS is blocked  
+**✅ Zero configuration:** Automatically detects and uses the best available engine  
+**✅ Offline mode:** Falls back to offline TTS if no internet connection
+
 ## 📁 Project Structure
 
 ```
@@ -24,10 +31,19 @@ talking_avatar_test/
 Make sure you have installed all required packages:
 
 ```bash
-pip install fastapi uvicorn python-multipart requests pydub edge-tts opencv-python numpy torch torchvision pillow imageio imageio-ffmpeg scipy aiohttp
+# Install from requirements.txt (RECOMMENDED)
+pip install -r requirements.txt
+
+# Or install manually:
+pip install flask edge-tts gTTS pyttsx3 pydub opencv-python numpy torch torchvision pillow imageio scipy
 ```
 
-**Python Version:** 3.12.3 (as you have)
+**Python Version:** 3.12.3
+
+**New Dependencies:**
+- `gTTS` - Google Text-to-Speech (fallback for blocked regions)
+- `pyttsx3` - Offline TTS (works without internet)
+- `pydub` - Audio processing and merging
 
 ### 2. Setup Wav2Lip
 
@@ -72,13 +88,18 @@ mkdir -p checkpoints
 
 ✅ **Hardcoded Text Generation** - Returns responses chunk by chunk (50 words)
 
-✅ **Text-to-Speech** - Edge-TTS with multiple voice options
+✅ **🌍 Multi-Region TTS** - Automatic fallback between Edge TTS, Google TTS, and Offline TTS
+   - **Edge TTS** - Highest quality (tries first)
+   - **Google TTS** - Good quality, works globally (automatic fallback)
+   - **Offline TTS** - Works without internet (last resort)
 
 ✅ **Lip-Sync Animation** - Wav2Lip for realistic talking avatars
 
 ✅ **Complete Pipeline** - Automated end-to-end processing
 
 ✅ **Performance Tracking** - Timing information for each stage
+
+✅ **Regional Compatibility** - No more 403 errors! Works in ALL regions
 
 ## ⚙️ Configuration Options
 
@@ -124,7 +145,28 @@ Save to: `Wav2Lip/checkpoints/wav2lip_gan.pth`
 
 ### Audio Issues
 - Ensure ffmpeg is installed: `apt-get install ffmpeg` (Linux) or download for Windows
-- Check internet connection (Edge-TTS requires online access)
+- Check internet connection (Edge-TTS and Google TTS require online access)
+- If you see "Edge TTS failed", the system will automatically switch to Google TTS
+- For offline mode, install pyttsx3: `pip install pyttsx3`
+
+### TTS 403 Error (FIXED!)
+**Problem:** Edge TTS blocked in your region (403 Forbidden)  
+**Solution:** ✅ Already fixed! The system now automatically:
+1. Tries Edge TTS first
+2. Falls back to Google TTS if Edge TTS fails
+3. Uses offline TTS if both online options fail
+
+**To force a specific engine:**
+```python
+# Force Google TTS (if Edge TTS is blocked)
+tts = TextToSpeechEngine(preferred_engine="gtts")
+
+# Force offline TTS (no internet needed)
+tts = TextToSpeechEngine(preferred_engine="pyttsx3")
+
+# Auto mode (default, recommended)
+tts = TextToSpeechEngine(preferred_engine="auto")
+```
 
 ### Video Generation Fails
 - Verify avatar image has a clear, visible face
