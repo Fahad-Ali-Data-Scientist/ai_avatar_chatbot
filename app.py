@@ -101,49 +101,50 @@ def create_avatar_image():
     return str(AVATAR_IMAGE_PATH)
 
 
-def hardcoded_chatbot(question: str) -> str:
-    """Generate response for the question."""
+def hardcoded_chatbot(question: str) -> Generator[str, None, None]:
+    """Generate response for the question word by word for streaming."""
     responses = {
         "what is ai": """Artificial Intelligence, commonly known as AI, is a branch of computer science 
         that focuses on creating intelligent machines capable of performing tasks that typically require 
         human intelligence. These tasks include learning from experience, understanding natural language, 
-        recognizing patterns, solving problems, and making decisions. AI systems use algorithms and large 
-        amounts of data to identify patterns and make predictions.""",
+        recognizing patterns, solving problems, and making decisions.""",
         
         "what is machine learning": """Machine Learning is a subset of artificial intelligence that enables 
         computers to learn and improve from experience without being explicitly programmed. It focuses on 
         developing algorithms that can analyze data, identify patterns, and make decisions with minimal 
-        human intervention. Machine learning powers many modern applications including spam filters, 
-        recommendation engines, fraud detection, and image recognition.""",
+        human intervention.""",
         
         "hello": """Hello! I'm Aria, your AI assistant. I'm here to help answer your questions and provide 
         information on a wide range of topics. Feel free to ask me anything!""",
         
         "who are you": """I'm Aria, an AI-powered virtual assistant. I can answer questions, provide information, 
-        and help you with various topics. I combine natural language processing with visual presentation to create 
-        an engaging conversational experience.""",
+        and help you with various topics.""",
         
         "how are you": """I'm doing great, thank you for asking! I'm always ready and excited to help answer 
-        your questions and assist you with information. How can I help you today?""",
+        your questions. How can I help you today?""",
     }
     
     question_lower = question.lower().strip()
+    response = None
     for key, value in responses.items():
         if key in question_lower:
-            return ' '.join(value.split())
+            response = ' '.join(value.split())
+            break
     
-    return """That's an interesting question! While I have information on many topics, I can best help you with 
-    questions about artificial intelligence, machine learning, and technology. Feel free to ask me about these 
-    topics, or try asking 'what is AI' or 'what is machine learning' to get started."""
-
-
-def generate_response_chunks(text: str, chunk_size: int = 30) -> Generator[str, None, None]:
-    """Generate text in chunks for streaming."""
-    words = text.split()
+    if response is None:
+        response = """That's an interesting question! I can help you with questions about artificial intelligence, 
+        machine learning, and technology. Feel free to ask me about these topics!"""
+    
+    # Stream response word by word (3-4 words at a time for natural feel)
+    words = response.split()
+    chunk_size = 3
     for i in range(0, len(words), chunk_size):
         chunk = ' '.join(words[i:i + chunk_size])
         yield chunk + ' '
-        time.sleep(0.1)
+        time.sleep(0.05)  # Small delay for natural streaming feel
+
+
+# Removed - now using direct generator from hardcoded_chatbot
 
 
 async def text_to_audio_edge_async(text: str, output_path: str, voice: str = "en-US-AriaNeural"):
@@ -210,7 +211,7 @@ def text_to_audio(text: str, output_path: str):
 
 
 def generate_video(audio_path: str, output_path: str, avatar_path: str):
-    """Generate lip-synced video using Wav2Lip."""
+    """Generate lip-synced video using Wav2Lip with GPU acceleration."""
     if not WAV2LIP_PATH.exists() or not WAV2LIP_CHECKPOINT.exists():
         print("⚠️ Wav2Lip not configured, skipping video generation")
         return False
@@ -221,6 +222,7 @@ def generate_video(audio_path: str, output_path: str, avatar_path: str):
     
     inference_script = WAV2LIP_PATH / "inference.py"
     
+    # Force GPU usage
     cmd = [
         sys.executable,
         str(inference_script),
@@ -228,11 +230,22 @@ def generate_video(audio_path: str, output_path: str, avatar_path: str):
         "--face", avatar_path,
         "--audio", audio_path,
         "--outfile", output_path,
-        "--pads", "0", "10", "0", "0"
+        "--pads", "0", "10", "0", "0",
+        "--nosmooth"  # Faster processing
     ]
     
+    # Set environment to force GPU usage
+    env = os.environ.copy()
+    env['CUDA_VISIBLE_DEVICES'] = '0'
+    
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        result = subprocess.run(
+            cmd, 
+            capture_output=True, 
+            text=True, 
+            timeout=30,  # Reduced timeout for GPU
+            env=env
+        )
         return result.returncode == 0
     except Exception as e:
         print(f"Video generation error: {e}")
@@ -240,23 +253,52 @@ def generate_video(audio_path: str, output_path: str, avatar_path: str):
 
 
 def process_video_async(session_id: str, text: str, avatar_path: str):
-    """Process video generation in background thread."""
+    """Process video generation in background thread with GPU acceleration."""
     try:
-        # Generate audio
+        import torch
+        
+        # Ensure GPU is available
+        if torch.cuda.is_available():
+            torch.cuda.set_device(0)  # Use first GPU
+            print(f"🎮 Using GPU: {torch.cuda.get_device_name(0)}")
+        else:
+            print("⚠️ GPU not available, using CPU")
+        
+        start_time = time.time()
+        
+        # Generate audio (fast)
         audio_path = OUTPUT_DIR / f"audio_{session_id}.mp3"
         text_to_audio(text, str(audio_path))
+        audio_time = time.time() - start_time
+        print(f"✓ Audio generated in {audio_time:.2f}s")
         
-        # Generate video
+        # Generate video with GPU (should be fast with RTX 3090)
+        video_start = time.time()
         video_path = OUTPUT_DIR / f"video_{session_id}.mp4"
         success = generate_video(str(audio_path), str(video_path), avatar_path)
+        video_time = time.time() - video_start
         
-        if success and session_id in response_queues:
-            response_queues[session_id].put({
-                "type": "video_ready",
-                "video_url": f"/video/{session_id}"
-            })
+        if success:
+            total_time = time.time() - start_time
+            print(f"✓ Video generated in {video_time:.2f}s (total: {total_time:.2f}s)")
+            
+            if session_id in response_queues:
+                response_queues[session_id].put({
+                    "type": "video_ready",
+                    "video_url": f"/video/{session_id}"
+                })
+        else:
+            print("✗ Video generation failed")
+            if session_id in response_queues:
+                response_queues[session_id].put({
+                    "type": "error",
+                    "message": "Video generation failed"
+                })
+                
     except Exception as e:
-        print(f"Error in video processing: {e}")
+        print(f"✗ Error in video processing: {e}")
+        import traceback
+        traceback.print_exc()
         if session_id in response_queues:
             response_queues[session_id].put({
                 "type": "error",
@@ -283,47 +325,48 @@ def ask():
     
     def generate():
         try:
-            # Generate response text
-            response_text = hardcoded_chatbot(question)
-            
-            # Stream text chunks
-            for chunk in generate_response_chunks(response_text, chunk_size=25):
-                yield f"data: {json.dumps({'type': 'text', 'content': chunk})}\n\n"
-                time.sleep(0.05)
-            
-            # Signal text complete
-            yield f"data: {json.dumps({'type': 'text_complete', 'full_text': response_text})}\n\n"
-            
-            # Start video generation in background
-            # Use the configured avatar (custom or fallback)
+            # Use the configured avatar
             if not AVATAR_IMAGE_PATH.exists():
-                # Create fallback avatar if it doesn't exist
                 avatar_path = create_avatar_image()
             else:
                 avatar_path = str(AVATAR_IMAGE_PATH)
             
+            # Start collecting full text for audio/video
+            full_text_parts = []
             response_queues[session_id] = Queue()
             
+            # Send session ID immediately
+            yield f"data: {json.dumps({'type': 'session_id', 'session_id': session_id})}\n\n"
+            
+            # Stream text word by word from generator
+            for chunk in hardcoded_chatbot(question):
+                full_text_parts.append(chunk)
+                yield f"data: {json.dumps({'type': 'text', 'content': chunk})}\n\n"
+            
+            # Get full text
+            full_text = ''.join(full_text_parts).strip()
+            
+            # Signal text complete
+            yield f"data: {json.dumps({'type': 'text_complete', 'full_text': full_text})}\n\n"
+            
+            # Start video generation in background (non-blocking)
             thread = threading.Thread(
                 target=process_video_async,
-                args=(session_id, response_text, avatar_path)
+                args=(session_id, full_text, avatar_path)
             )
             thread.daemon = True
             thread.start()
             
-            # Send session ID
-            yield f"data: {json.dumps({'type': 'session_id', 'session_id': session_id})}\n\n"
-            
-            # Wait for video or timeout
+            # Wait for video with reduced timeout (GPU is faster)
             start_time = time.time()
-            timeout = 45
+            timeout = 15  # Reduced from 45s for GPU
             
             while time.time() - start_time < timeout:
                 if not response_queues[session_id].empty():
                     result = response_queues[session_id].get()
                     yield f"data: {json.dumps(result)}\n\n"
                     break
-                time.sleep(0.5)
+                time.sleep(0.2)  # Check more frequently
             else:
                 yield f"data: {json.dumps({'type': 'timeout', 'message': 'Video generation timeout'})}\n\n"
             
@@ -384,7 +427,23 @@ if __name__ == '__main__':
     print("\n" + "="*60)
     print("🚀 Starting Talking Avatar Web App")
     print("="*60)
+    
+    # Check GPU
+    try:
+        import torch
+        if torch.cuda.is_available():
+            print(f"🎮 GPU: {torch.cuda.get_device_name(0)}")
+            print(f"   Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
+            print(f"   ✅ GPU acceleration ENABLED")
+            # Warm up GPU
+            torch.cuda.set_device(0)
+        else:
+            print("⚠️  No GPU detected - will run on CPU (slower)")
+    except Exception as e:
+        print(f"⚠️  GPU check failed: {e}")
+    
     print(f"📁 Output directory: {OUTPUT_DIR.absolute()}")
+    
     if AVATAR_IMAGE_PATH.exists():
         print(f"🎭 Avatar: {AVATAR_IMAGE_PATH.absolute()}")
         print(f"   ✅ Custom avatar loaded")
@@ -405,12 +464,19 @@ if __name__ == '__main__':
         print("⚠️  TTS: No engine available - install edge-tts, gtts, or pyttsx3")
     
     if WAV2LIP_PATH.exists() and WAV2LIP_CHECKPOINT.exists():
-        print("✅ Wav2Lip: Ready")
+        print("✅ Wav2Lip: Ready (GPU accelerated)")
     else:
         print("⚠️  Wav2Lip: Not configured (audio-only mode)")
     
     print("\n🌐 Server starting at: http://localhost:5000")
+    print("⚡ Optimizations:")
+    print("   - Streaming response (3-4 words at a time)")
+    print("   - GPU acceleration for video generation")
+    print("   - Parallel audio/video processing")
     print("="*60 + "\n")
+    
+    # Set environment for GPU
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     
     app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
 

@@ -96,11 +96,13 @@ echo "   - Wav2Lip integration (GPU accelerated)"
 echo "   - Streaming responses"
 echo ""
 
-# Set environment variables for GPU
+# Set environment variables for GPU and optimization
 export CUDA_VISIBLE_DEVICES=0
+export CUDA_LAUNCH_BLOCKING=0  # Async CUDA ops for speed
+export OMP_NUM_THREADS=4  # Optimize CPU threads
 
 # Start Flask in background
-python3 app.py > flask.log 2>&1 &
+python3 -u app.py > flask.log 2>&1 &
 FLASK_PID=$!
 
 # Wait for Flask to start
