@@ -26,7 +26,7 @@ import threading
 import cv2
 import numpy as np
 from queue import Queue
-
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 # Import TTS libraries with fallback support
 TTS_ENGINE = None
 try:

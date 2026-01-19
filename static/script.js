@@ -10,6 +10,7 @@ const audioPlayer = document.getElementById('audioPlayer');
 const loadingRing = document.getElementById('loadingRing');
 const statusIndicator = document.getElementById('statusIndicator');
 const suggestions = document.querySelectorAll('.suggestion-btn');
+const avatarSubtitle = document.getElementById('avatarSubtitle');
 
 // State
 let isProcessing = false;
@@ -180,15 +181,20 @@ async function streamResponse(question) {
                         
                     case 'session_id':
                         currentSessionId = data.session_id;
+                        // Show loading state
+                        loadingRing.classList.add('active');
+                        avatarSubtitle.textContent = 'Generating video...';
                         break;
                         
                     case 'video_ready':
+                        loadingRing.classList.remove('active');
                         await playVideo(data.video_url);
-                        statusIndicator.classList.remove('speaking');
                         break;
                         
                     case 'timeout':
-                        console.log('Video generation timeout, audio only');
+                        console.log('⏱️ Video generation timeout, playing audio only');
+                        loadingRing.classList.remove('active');
+                        avatarSubtitle.textContent = 'Playing audio...';
                         statusIndicator.classList.remove('speaking');
                         // Try to play audio if available
                         if (currentSessionId) {
@@ -197,8 +203,13 @@ async function streamResponse(question) {
                         break;
                         
                     case 'error':
-                        console.error('Server error:', data.message);
+                        console.error('❌ Server error:', data.message);
+                        loadingRing.classList.remove('active');
+                        avatarSubtitle.textContent = 'Error occurred';
                         statusIndicator.classList.remove('speaking');
+                        setTimeout(() => {
+                            avatarSubtitle.textContent = 'Ask me anything';
+                        }, 3000);
                         break;
                 }
             }
@@ -209,33 +220,58 @@ async function streamResponse(question) {
 // Play generated video
 async function playVideo(videoUrl) {
     try {
-        avatarVideo.src = videoUrl;
-        avatarImage.style.display = 'none';
+        console.log('🎬 Loading video:', videoUrl);
+        avatarSubtitle.textContent = 'Loading video...';
+        
+        // Set video source with cache buster
+        avatarVideo.src = videoUrl + '?t=' + new Date().getTime();
+        
+        // Hide image, show video
+        avatarImage.classList.add('hidden');
         avatarVideo.classList.add('active');
         
         // Wait for video to load
         await new Promise((resolve, reject) => {
-            avatarVideo.onloadeddata = resolve;
-            avatarVideo.onerror = reject;
+            avatarVideo.onloadeddata = () => {
+                console.log('✅ Video loaded successfully');
+                resolve();
+            };
+            avatarVideo.onerror = (e) => {
+                console.error('❌ Video load error:', e);
+                reject(e);
+            };
+            
+            // Timeout after 10 seconds
+            setTimeout(() => reject(new Error('Video load timeout')), 10000);
         });
         
-        // Play video
+        avatarSubtitle.textContent = 'Speaking...';
+        statusIndicator.classList.add('speaking');
+        
+        // Play video with audio
         await avatarVideo.play();
+        console.log('▶️ Video playing with lip-sync');
         
         // When video ends, show image again
         avatarVideo.onended = () => {
+            console.log('✅ Video playback complete');
             avatarVideo.classList.remove('active');
-            avatarImage.style.display = 'block';
+            avatarImage.classList.remove('hidden');
             statusIndicator.classList.remove('speaking');
+            avatarSubtitle.textContent = 'Ask me anything';
+            
+            // Clear video source to free memory
+            avatarVideo.src = '';
         };
         
     } catch (error) {
-        console.error('Error playing video:', error);
+        console.error('❌ Error playing video:', error);
         avatarVideo.classList.remove('active');
-        avatarImage.style.display = 'block';
+        avatarImage.classList.remove('hidden');
         statusIndicator.classList.remove('speaking');
+        avatarSubtitle.textContent = 'Playing audio only...';
         
-        // Fallback to audio
+        // Fallback to audio only
         if (currentSessionId) {
             tryPlayAudio(currentSessionId);
         }
