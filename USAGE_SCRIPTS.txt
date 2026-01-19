@@ -1,0 +1,256 @@
+================================================================================
+  USAGE GUIDE FOR SETUP SCRIPTS
+================================================================================
+
+Two new scripts have been created:
+  1. setup_wav2lip.sh       - Setup Wav2Lip and download model weights
+  2. run_with_cloudflare.sh - Run app with public HTTPS URL
+
+================================================================================
+  FILE 1: setup_wav2lip.sh
+================================================================================
+
+PURPOSE:
+  - Clones Wav2Lip repository from GitHub
+  - Creates necessary directories (checkpoints, temp, results)
+  - Downloads model weights (740 MB) from HuggingFace
+  - Sets up everything needed for Wav2Lip
+
+USAGE:
+
+  # Make executable (if needed)
+  chmod +x setup_wav2lip.sh
+  
+  # Run the script
+  ./setup_wav2lip.sh
+
+WHAT IT DOES:
+  1. Checks if Wav2Lip already exists
+  2. Clones: git clone https://github.com/Rudrabha/Wav2Lip.git
+  3. Creates directories: checkpoints/, temp/, results/
+  4. Downloads model: wget wav2lip_gan.pth (740 MB)
+  5. Verifies installation
+
+EXPECTED OUTPUT:
+  ========================================
+    WAV2LIP SETUP SCRIPT
+  ========================================
+  
+  📥 Cloning Wav2Lip repository...
+  ✅ Wav2Lip cloned successfully
+  
+  📁 Creating checkpoints directory...
+  📁 Creating temp directory...
+  📁 Creating results directory...
+  
+  📥 Downloading model weights...
+     Size: ~740 MB (this may take a few minutes)
+  
+  ✅ Model weights downloaded successfully
+  ✅ Model file verified: 740M
+  
+  ========================================
+    ✅ WAV2LIP SETUP COMPLETE!
+  ========================================
+
+REQUIREMENTS:
+  - git installed
+  - wget installed
+  - Internet connection
+  - ~1 GB free disk space
+
+TROUBLESHOOTING:
+  - If wget fails, download manually from:
+    https://huggingface.co/Nekochu/Wav2Lip/resolve/main/wav2lip_gan.pth
+    Save to: Wav2Lip/checkpoints/wav2lip_gan.pth
+
+================================================================================
+  FILE 2: run_with_cloudflare.sh
+================================================================================
+
+PURPOSE:
+  - Runs your Flask app (app.py)
+  - Creates a Cloudflare tunnel
+  - Gives you a public HTTPS URL (like: https://abc-123.trycloudflare.com)
+  - No port forwarding needed!
+
+USAGE:
+
+  # Make executable (if needed)
+  chmod +x run_with_cloudflare.sh
+  
+  # Run the script
+  ./run_with_cloudflare.sh
+
+WHAT IT DOES:
+  1. Checks for Python and app.py
+  2. Installs cloudflared (if not already installed)
+  3. Starts Flask app on port 5000
+  4. Creates Cloudflare tunnel
+  5. Shows public HTTPS URL
+
+EXPECTED OUTPUT:
+  ========================================
+    TALKING AVATAR - CLOUDFLARE TUNNEL
+  ========================================
+  
+  ✓ Using Python: python3
+  ✅ cloudflared already installed
+  
+  ========================================
+    STARTING SERVICES
+  ========================================
+  
+  🚀 Starting Flask application on port 5000...
+  ✅ Flask app started (PID: 12345)
+  
+  🌐 Starting Cloudflare Tunnel...
+     This will create a public HTTPS URL for your app
+  
+  ========================================
+  
+  2026-01-19 10:30:45 INF Thank you for trying Cloudflare Tunnel!
+  2026-01-19 10:30:45 INF Your quick tunnel has been created! Visit it at:
+  2026-01-19 10:30:45 INF https://abc-123-def-456.trycloudflare.com
+  
+  ========================================
+  
+  Copy this URL ↑ and share it!
+  The app is now accessible from anywhere via HTTPS!
+  
+  Press Ctrl+C to stop the tunnel and Flask app
+
+FEATURES:
+  ✅ Automatic HTTPS (no SSL setup needed)
+  ✅ Public URL (accessible from anywhere)
+  ✅ No port forwarding required
+  ✅ Free to use (Cloudflare Tunnel)
+  ✅ Automatic cleanup on exit
+
+REQUIREMENTS:
+  - Python 3.12+
+  - app.py in current directory
+  - Internet connection
+  - Linux/macOS (Windows: install cloudflared manually)
+
+CLOUDFLARED INSTALLATION:
+  Linux:
+    wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+    sudo mv cloudflared-linux-amd64 /usr/local/bin/cloudflared
+    sudo chmod +x /usr/local/bin/cloudflared
+  
+  macOS:
+    brew install cloudflared
+  
+  Windows:
+    Download: https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe
+    Rename to cloudflared.exe
+    Add to PATH
+
+HOW TO STOP:
+  Press Ctrl+C
+  
+  The script will automatically:
+  - Stop the Cloudflare tunnel
+  - Stop the Flask app
+  - Clean up processes
+
+LOGS:
+  - Flask app logs: flask_app.log
+  - Terminal shows Cloudflare tunnel logs
+
+================================================================================
+  COMPLETE WORKFLOW
+================================================================================
+
+Step 1: Setup Wav2Lip (one-time setup)
+  ./setup_wav2lip.sh
+
+Step 2: Install Python dependencies
+  pip install -r requirements.txt
+
+Step 3: Run with Cloudflare (creates public HTTPS URL)
+  ./run_with_cloudflare.sh
+
+Step 4: Access your app
+  - Copy the HTTPS URL from terminal
+  - Share it with anyone
+  - Access from any device
+
+================================================================================
+  EXAMPLES
+================================================================================
+
+Example 1: Fresh Setup
+  $ ./setup_wav2lip.sh
+  [Downloads Wav2Lip and model weights]
+  
+  $ pip install -r requirements.txt
+  [Installs dependencies]
+  
+  $ ./run_with_cloudflare.sh
+  [Creates: https://abc-123.trycloudflare.com]
+
+Example 2: Already Setup
+  $ ./run_with_cloudflare.sh
+  [Just run and get your public URL]
+
+Example 3: Local Testing (without Cloudflare)
+  $ python app.py
+  [Access at: http://localhost:5000]
+
+================================================================================
+  SECURITY NOTES
+================================================================================
+
+⚠️ IMPORTANT:
+  - The Cloudflare tunnel URL is PUBLIC and temporary
+  - Anyone with the URL can access your app
+  - URL changes each time you restart the script
+  - Use for testing/demo purposes only
+  - For production, use proper authentication
+
+================================================================================
+  TROUBLESHOOTING
+================================================================================
+
+Problem: "chmod: command not found" (Windows)
+Solution: 
+  - Use Git Bash or WSL
+  - Or run directly: bash setup_wav2lip.sh
+
+Problem: "cloudflared: command not found"
+Solution:
+  - Install cloudflared (see instructions above)
+  - Or add to PATH
+
+Problem: "Port 5000 already in use"
+Solution:
+  - Kill existing Flask: pkill -f "python.*app.py"
+  - Or change port in app.py
+
+Problem: Tunnel URL not showing
+Solution:
+  - Wait 10-15 seconds for tunnel to initialize
+  - Check if Flask is running: ps aux | grep app.py
+  - Check flask_app.log for errors
+
+Problem: Model download fails
+Solution:
+  - Download manually from HuggingFace
+  - Or use browser to download
+  - Save to: Wav2Lip/checkpoints/wav2lip_gan.pth
+
+================================================================================
+  TIPS
+================================================================================
+
+✅ Keep terminal open while tunnel is running
+✅ Share the HTTPS URL for remote access
+✅ Check flask_app.log if errors occur
+✅ Use Ctrl+C to stop gracefully
+✅ URL changes on each restart (it's temporary)
+
+================================================================================
+END OF GUIDE
+================================================================================

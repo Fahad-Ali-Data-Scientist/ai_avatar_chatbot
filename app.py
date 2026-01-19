@@ -207,6 +207,10 @@ def generate_video(audio_path: str, output_path: str, avatar_path: str):
         print("⚠️ Wav2Lip not configured, skipping video generation")
         return False
     
+    # Create temp directory for Wav2Lip (required for audio processing)
+    temp_dir = WAV2LIP_PATH / "temp"
+    temp_dir.mkdir(exist_ok=True)
+    
     inference_script = WAV2LIP_PATH / "inference.py"
     
     cmd = [
