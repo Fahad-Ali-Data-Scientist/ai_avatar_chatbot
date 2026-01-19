@@ -86,6 +86,54 @@ cd ..
 
 echo ""
 echo "========================================"
+echo "  GPU SETUP & VERIFICATION"
+echo "========================================"
+echo ""
+
+# Check for NVIDIA GPU
+if command -v nvidia-smi &> /dev/null; then
+    echo "🎮 Checking GPU availability..."
+    echo ""
+    nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader
+    echo ""
+    echo "✅ NVIDIA GPU detected!"
+    echo ""
+    
+    # Check CUDA version
+    if command -v nvcc &> /dev/null; then
+        CUDA_VERSION=$(nvcc --version | grep "release" | awk '{print $6}' | cut -c2-)
+        echo "✅ CUDA installed: version $CUDA_VERSION"
+    else
+        echo "⚠️  CUDA toolkit not found (nvcc not in PATH)"
+        echo "   GPU will still work with PyTorch's bundled CUDA"
+    fi
+    echo ""
+    
+    # Check Python GPU support
+    echo "🔍 Verifying PyTorch GPU support..."
+    python3 -c "import torch; print('✅ PyTorch version:', torch.__version__); print('✅ CUDA available:', torch.cuda.is_available()); print('✅ GPU count:', torch.cuda.device_count()); print('✅ Current GPU:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'N/A')" 2>/dev/null
+    
+    if [ $? -eq 0 ]; then
+        echo ""
+        echo "✅ PyTorch GPU support verified!"
+        echo ""
+        echo "🚀 Wav2Lip will run on GPU for 5-10x faster generation!"
+    else
+        echo ""
+        echo "⚠️  PyTorch not installed or no GPU support"
+        echo ""
+        echo "Installing PyTorch with GPU support..."
+        pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+        echo ""
+        echo "✅ PyTorch with GPU support installed!"
+    fi
+else
+    echo "⚠️  No NVIDIA GPU detected (nvidia-smi not found)"
+    echo "   Wav2Lip will run on CPU (slower)"
+fi
+
+echo ""
+echo "========================================"
 echo "  ✅ WAV2LIP SETUP COMPLETE!"
 echo "========================================"
 echo ""

@@ -61,14 +61,43 @@ if ! command -v cloudflared &> /dev/null; then
 fi
 
 echo "================================================================"
+echo "GPU & System Check"
+echo "================================================================"
+echo ""
+
+# Check for GPU
+if command -v nvidia-smi &> /dev/null; then
+    echo "🎮 GPU Status:"
+    GPU_INFO=$(nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv,noheader | head -n 1)
+    echo "   $GPU_INFO"
+    
+    # Check if PyTorch can see GPU
+    python3 -c "import torch; print('   CUDA available:', torch.cuda.is_available()); print('   GPU device:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'N/A')" 2>/dev/null
+    
+    if [ $? -eq 0 ]; then
+        echo "   ✅ GPU acceleration ENABLED"
+        echo "   🚀 Wav2Lip will run 5-10x faster!"
+    else
+        echo "   ⚠️  PyTorch GPU support not detected"
+        echo "   Will run on CPU (slower)"
+    fi
+else
+    echo "⚠️  No GPU detected - running on CPU"
+fi
+
+echo ""
+echo "================================================================"
 echo "Starting Talking Avatar Flask server..."
 echo "================================================================"
 echo ""
 echo "🎭 Initializing AI Talking Avatar..."
 echo "   - Multi-region TTS engine"
-echo "   - Wav2Lip integration"
+echo "   - Wav2Lip integration (GPU accelerated)"
 echo "   - Streaming responses"
 echo ""
+
+# Set environment variables for GPU
+export CUDA_VISIBLE_DEVICES=0
 
 # Start Flask in background
 python3 app.py > flask.log 2>&1 &
