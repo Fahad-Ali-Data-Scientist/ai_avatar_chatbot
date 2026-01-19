@@ -47,17 +47,19 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // Load avatar image
 function loadAvatarImage() {
-    fetch('/health')
-        .then(res => res.json())
-        .then(data => {
-            // Create a placeholder avatar
-            const canvas = document.createElement('canvas');
-            canvas.width = 512;
-            canvas.height = 512;
-            const ctx = canvas.getContext('2d');
-            
-            // Gradient background
-            const gradient = ctx.createLinearGradient(0, 0, 512, 512);
+    // Load the actual avatar image from server
+    avatarImage.src = '/avatar?t=' + new Date().getTime(); // Add timestamp to prevent caching
+    
+    avatarImage.onerror = function() {
+        // If avatar image fails to load, create a placeholder
+        console.warn('Avatar image not found, creating placeholder');
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        
+        // Gradient background
+        const gradient = ctx.createLinearGradient(0, 0, 512, 512);
             gradient.addColorStop(0, '#f5d5b8');
             gradient.addColorStop(1, '#e8c4a0');
             ctx.fillStyle = gradient;
@@ -86,8 +88,13 @@ function loadAvatarImage() {
             ctx.stroke();
             
             avatarImage.src = canvas.toDataURL();
-        })
-        .catch(err => console.error('Error loading avatar:', err));
+    };
+    
+    avatarImage.onload = function() {
+        console.log('✅ Avatar image loaded successfully');
+        // Show the avatar
+        avatarImage.style.display = 'block';
+    };
 }
 
 // Handle send

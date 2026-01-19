@@ -62,7 +62,15 @@ WAV2LIP_PATH = Path("./Wav2Lip")
 WAV2LIP_CHECKPOINT = WAV2LIP_PATH / "checkpoints" / "wav2lip_gan.pth"
 
 # Avatar cache
-AVATAR_IMAGE_PATH = OUTPUT_DIR / "avatar.jpg"
+# You can set this to your custom avatar path
+AVATAR_IMAGE_PATH = Path("/chatbot/app_code/ai_avatar_chatbot/outputs/avatar.jpg")
+
+# Fallback to local path if custom path doesn't exist
+if not AVATAR_IMAGE_PATH.exists():
+    AVATAR_IMAGE_PATH = OUTPUT_DIR / "avatar.jpg"
+    print(f"⚠️ Custom avatar not found, using fallback: {AVATAR_IMAGE_PATH}")
+else:
+    print(f"✅ Using custom avatar: {AVATAR_IMAGE_PATH}")
 
 # Response queue for streaming
 response_queues = {}
@@ -287,7 +295,13 @@ def ask():
             yield f"data: {json.dumps({'type': 'text_complete', 'full_text': response_text})}\n\n"
             
             # Start video generation in background
-            avatar_path = create_avatar_image()
+            # Use the configured avatar (custom or fallback)
+            if not AVATAR_IMAGE_PATH.exists():
+                # Create fallback avatar if it doesn't exist
+                avatar_path = create_avatar_image()
+            else:
+                avatar_path = str(AVATAR_IMAGE_PATH)
+            
             response_queues[session_id] = Queue()
             
             thread = threading.Thread(
@@ -345,12 +359,24 @@ def get_audio(session_id):
         return jsonify({"error": "Audio not found"}), 404
 
 
+@app.route('/avatar')
+def get_avatar():
+    """Serve the avatar image."""
+    if AVATAR_IMAGE_PATH.exists():
+        return send_file(AVATAR_IMAGE_PATH, mimetype='image/jpeg')
+    else:
+        # Return a 404 if avatar doesn't exist
+        return jsonify({"error": "Avatar not found"}), 404
+
+
 @app.route('/health')
 def health():
     """Health check endpoint."""
     return jsonify({
         "status": "healthy",
-        "wav2lip_available": WAV2LIP_PATH.exists() and WAV2LIP_CHECKPOINT.exists()
+        "wav2lip_available": WAV2LIP_PATH.exists() and WAV2LIP_CHECKPOINT.exists(),
+        "avatar_available": AVATAR_IMAGE_PATH.exists(),
+        "avatar_path": str(AVATAR_IMAGE_PATH)
     })
 
 
@@ -359,7 +385,13 @@ if __name__ == '__main__':
     print("🚀 Starting Talking Avatar Web App")
     print("="*60)
     print(f"📁 Output directory: {OUTPUT_DIR.absolute()}")
-    print(f"🎭 Avatar: {create_avatar_image()}")
+    if AVATAR_IMAGE_PATH.exists():
+        print(f"🎭 Avatar: {AVATAR_IMAGE_PATH.absolute()}")
+        print(f"   ✅ Custom avatar loaded")
+    else:
+        print(f"🎭 Avatar: Creating fallback avatar...")
+        create_avatar_image()
+        print(f"   ⚠️ Using fallback avatar at: {AVATAR_IMAGE_PATH}")
     
     # Check TTS Engine
     if TTS_ENGINE:
