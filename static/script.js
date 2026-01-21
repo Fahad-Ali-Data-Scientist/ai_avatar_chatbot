@@ -172,30 +172,42 @@ async function streamResponse(question) {
                         fullText += data.content;
                         // Auto scroll
                         responseContainer.scrollTop = responseContainer.scrollHeight;
+                        // Show thinking state on avatar
+                        avatarSubtitle.textContent = 'Thinking...';
+                        statusIndicator.classList.add('thinking');
                         break;
                         
                     case 'text_complete':
                         responseText.classList.remove('typing');
                         fullText = data.full_text;
+                        // Text is done, now preparing to speak
+                        avatarSubtitle.textContent = 'Preparing to speak...';
+                        statusIndicator.classList.remove('thinking');
                         break;
                         
                     case 'session_id':
                         currentSessionId = data.session_id;
-                        // Show loading state
+                        // Show animated generating state
                         loadingRing.classList.add('active');
-                        avatarSubtitle.textContent = 'Generating video...';
+                        statusIndicator.classList.add('generating');
+                        animateGeneratingText();
                         break;
                         
                     case 'video_ready':
                         loadingRing.classList.remove('active');
+                        statusIndicator.classList.remove('generating');
+                        avatarSubtitle.textContent = 'Ready to speak...';
+                        // Small delay before speaking for natural feel
+                        await new Promise(resolve => setTimeout(resolve, 800));
                         await playVideo(data.video_url);
                         break;
                         
                     case 'timeout':
                         console.log('⏱️ Video generation timeout, playing audio only');
                         loadingRing.classList.remove('active');
+                        statusIndicator.classList.remove('generating');
                         avatarSubtitle.textContent = 'Playing audio...';
-                        statusIndicator.classList.remove('speaking');
+                        statusIndicator.classList.remove('speaking', 'thinking');
                         // Try to play audio if available
                         if (currentSessionId) {
                             tryPlayAudio(currentSessionId);
@@ -205,8 +217,9 @@ async function streamResponse(question) {
                     case 'error':
                         console.error('❌ Server error:', data.message);
                         loadingRing.classList.remove('active');
+                        statusIndicator.classList.remove('generating');
                         avatarSubtitle.textContent = 'Error occurred';
-                        statusIndicator.classList.remove('speaking');
+                        statusIndicator.classList.remove('speaking', 'thinking');
                         setTimeout(() => {
                             avatarSubtitle.textContent = 'Ask me anything';
                         }, 3000);
@@ -220,20 +233,38 @@ async function streamResponse(question) {
 // Play generated video
 async function playVideo(videoUrl) {
     try {
+        clearInterval(generatingInterval);
         console.log('🎬 Loading video:', videoUrl);
+        console.log('📊 Video element state:', {
+            src: avatarVideo.src,
+            classList: avatarVideo.classList.toString(),
+            display: window.getComputedStyle(avatarVideo).display,
+            zIndex: window.getComputedStyle(avatarVideo).zIndex
+        });
+        
         avatarSubtitle.textContent = 'Loading video...';
+        loadingRing.classList.remove('active');
         
         // Set video source with cache buster
         avatarVideo.src = videoUrl + '?t=' + new Date().getTime();
         
-        // Hide image, show video
-        avatarImage.classList.add('hidden');
+        // Force video to be visible
+        avatarImage.style.display = 'none';
+        avatarVideo.style.display = 'block';
         avatarVideo.classList.add('active');
+        
+        console.log('📊 After changes:', {
+            imageDisplay: avatarImage.style.display,
+            videoDisplay: avatarVideo.style.display,
+            videoClass: avatarVideo.classList.toString()
+        });
         
         // Wait for video to load
         await new Promise((resolve, reject) => {
             avatarVideo.onloadeddata = () => {
                 console.log('✅ Video loaded successfully');
+                console.log('   Duration:', avatarVideo.duration, 'seconds');
+                console.log('   Video size:', avatarVideo.videoWidth, 'x', avatarVideo.videoHeight);
                 resolve();
             };
             avatarVideo.onerror = (e) => {
@@ -249,14 +280,20 @@ async function playVideo(videoUrl) {
         statusIndicator.classList.add('speaking');
         
         // Play video with audio
+        console.log('▶️ Starting playback...');
         await avatarVideo.play();
-        console.log('▶️ Video playing with lip-sync');
+        console.log('✅ Video playing with lip-sync!');
+        console.log('   Current time:', avatarVideo.currentTime);
+        console.log('   Paused:', avatarVideo.paused);
+        console.log('   Muted:', avatarVideo.muted);
+        console.log('   Volume:', avatarVideo.volume);
         
         // When video ends, show image again
         avatarVideo.onended = () => {
             console.log('✅ Video playback complete');
             avatarVideo.classList.remove('active');
-            avatarImage.classList.remove('hidden');
+            avatarVideo.style.display = 'none';
+            avatarImage.style.display = 'block';
             statusIndicator.classList.remove('speaking');
             avatarSubtitle.textContent = 'Ask me anything';
             
@@ -267,7 +304,8 @@ async function playVideo(videoUrl) {
     } catch (error) {
         console.error('❌ Error playing video:', error);
         avatarVideo.classList.remove('active');
-        avatarImage.classList.remove('hidden');
+        avatarVideo.style.display = 'none';
+        avatarImage.style.display = 'block';
         statusIndicator.classList.remove('speaking');
         avatarSubtitle.textContent = 'Playing audio only...';
         
@@ -278,8 +316,34 @@ async function playVideo(videoUrl) {
     }
 }
 
+// Animate generating text with dots
+let generatingInterval;
+function animateGeneratingText() {
+    clearInterval(generatingInterval);
+    let dots = 0;
+    const messages = [
+        'Generating answer',
+        'Creating voice',
+        'Syncing lips',
+        'Almost ready'
+    ];
+    let messageIndex = 0;
+    
+    generatingInterval = setInterval(() => {
+        dots = (dots + 1) % 4;
+        const dotString = '.'.repeat(dots);
+        avatarSubtitle.textContent = messages[messageIndex] + dotString;
+        
+        // Change message every 2 seconds
+        if (dots === 0) {
+            messageIndex = (messageIndex + 1) % messages.length;
+        }
+    }, 500);
+}
+
 // Try to play audio
 function tryPlayAudio(sessionId) {
+    clearInterval(generatingInterval);
     const audioUrl = `/audio/${sessionId}`;
     audioPlayer.src = audioUrl;
     audioPlayer.play().catch(err => {

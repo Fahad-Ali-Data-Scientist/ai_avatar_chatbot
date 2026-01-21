@@ -76,10 +76,13 @@ body {
     object-fit: cover;
     background: #2d2d2d;
     display: block;
+    z-index: 5;
 }
 
 .avatar-image.hidden {
-    display: none;
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
 }
 
 .avatar-video {
@@ -93,10 +96,15 @@ body {
     background: #2d2d2d;
     display: none;
     z-index: 10;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease;
 }
 
 .avatar-video.active {
-    display: block;
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
 .loading-ring {
@@ -135,6 +143,17 @@ body {
 
 .status-indicator.speaking {
     animation: pulse 1.5s ease-in-out infinite;
+    background: #4caf50;
+}
+
+.status-indicator.thinking {
+    animation: pulse 1s ease-in-out infinite;
+    background: #2196F3;
+}
+
+.status-indicator.generating {
+    animation: spin 2s linear infinite;
+    background: linear-gradient(135deg, #FF9800 0%, #F44336 100%);
 }
 
 @keyframes pulse {
@@ -142,10 +161,20 @@ body {
     50% { transform: scale(1.2); opacity: 0.8; }
 }
 
+@keyframes spin {
+    0% { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(180deg) scale(1.2); }
+    100% { transform: rotate(360deg) scale(1); }
+}
+
 .avatar-subtitle {
     margin-top: 20px;
     font-size: 16px;
     color: #999;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    transition: color 0.3s ease;
+    min-height: 24px;
 }
 
 /* Response Container */

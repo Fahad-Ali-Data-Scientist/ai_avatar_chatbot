@@ -18,7 +18,12 @@
         <div class="avatar-container">
             <div class="avatar-circle">
                 <img id="avatarImage" class="avatar-image" src="" alt="Avatar">
-                <video id="avatarVideo" class="avatar-video" playsinline></video>
+                <video id="avatarVideo" 
+                       class="avatar-video" 
+                       playsinline 
+                       preload="auto"
+                       controlslist="nodownload"
+                       disablepictureinpicture></video>
                 <div class="loading-ring" id="loadingRing"></div>
             </div>
             <div class="status-indicator" id="statusIndicator"></div>

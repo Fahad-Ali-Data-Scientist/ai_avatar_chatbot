@@ -52,6 +52,8 @@ if TTS_ENGINE is None:
     except ImportError:
         print("⚠ No TTS engine available!")
 
+
+TTS_ENGINE = "pyttsx3"
 app = Flask(__name__)
 
 # Configuration
@@ -103,25 +105,32 @@ def create_avatar_image():
 
 def hardcoded_chatbot(question: str) -> Generator[str, None, None]:
     """Generate response for the question word by word for streaming."""
+
     responses = {
-        "what is ai": """Artificial Intelligence, commonly known as AI, is a branch of computer science 
-        that focuses on creating intelligent machines capable of performing tasks that typically require 
-        human intelligence. These tasks include learning from experience, understanding natural language, 
-        recognizing patterns, solving problems, and making decisions.""",
+        "hello": "Hello! How can I help you today?",
+
+        "hi": "Hi there! Hope you are doing well.",
+
+        "hey": "Hey! Nice to see you. What can I do for you?",
+
+
+        "what is fever": "Fever is an increase in body temperature above normal. It usually happens when the body is fighting an infection. Fever helps the immune system work better.",
+
+        "what is headache": "A headache is pain or pressure felt in the head or neck. It can be caused by stress, lack of sleep, dehydration, or illness.",
+
+        "what is cough": "A cough is a reflex action that helps clear the airways. It can be caused by infections, allergies, or irritation in the throat.",
+
+        "what is cold": "The common cold is a viral infection of the nose and throat. Symptoms include sneezing, runny nose, sore throat, and mild fever.",
+        "what is fever explain": "Fever is a temporary increase in body temperature above the normal level of about 37°C (98.6°F). It usually occurs when the body is fighting an infection caused by viruses, bacteria, or other germs. Fever is part of the body’s natural defense mechanism and helps the immune system work more effectively. When body temperature rises, it becomes harder for harmful microorganisms to survive. Fever can also be caused by inflammation, heat exhaustion, or certain medications. Common symptoms along with fever include sweating, chills, headache, weakness, and body aches. Mild fever is usually not dangerous, but very high or long-lasting fever may require medical attention.",
+          
+        "what is headache explain": "A headache is pain, discomfort, or pressure felt in the head, scalp, or neck region. It is one of the most common health problems and can affect people of all ages. Headaches can be caused by stress, lack of sleep, dehydration, eye strain, illness, or changes in routine. There are different types of headaches, such as tension headaches, migraines, and sinus headaches. The pain may feel dull, sharp, throbbing, or tight depending on the type. Most headaches are not serious and improve with rest, hydration, and pain relief, but frequent or severe headaches may need medical evaluation.",
+          
+        "what is cough explain": "A cough is a natural reflex action that helps clear the airways of mucus, dust, smoke, or other irritants. It plays an important role in protecting the lungs and keeping the breathing passages clean. Cough can be caused by infections like the common cold or flu, allergies, asthma, smoking, or throat irritation. There are different types of coughs, such as dry cough and productive cough that brings out mucus. Cough may be temporary or long-lasting depending on the cause. While mild cough usually resolves on its own, persistent or severe cough may indicate an underlying health condition.",
+          
+        "what is cold explain": "The common cold is a viral infection that affects the nose, throat, and upper respiratory tract. It is caused by different viruses and spreads easily from person to person through air droplets or contact. Common symptoms include sneezing, runny or blocked nose, sore throat, cough, mild fever, and tiredness. The cold is usually not serious and most people recover within a few days to a week. There is no specific cure for the common cold, but rest, fluids, and basic medicines can help relieve symptoms. Good hygiene helps prevent its spread.",
+
         
-        "what is machine learning": """Machine Learning is a subset of artificial intelligence that enables 
-        computers to learn and improve from experience without being explicitly programmed. It focuses on 
-        developing algorithms that can analyze data, identify patterns, and make decisions with minimal 
-        human intervention.""",
-        
-        "hello": """Hello! I'm Aria, your AI assistant. I'm here to help answer your questions and provide 
-        information on a wide range of topics. Feel free to ask me anything!""",
-        
-        "who are you": """I'm Aria, an AI-powered virtual assistant. I can answer questions, provide information, 
-        and help you with various topics.""",
-        
-        "how are you": """I'm doing great, thank you for asking! I'm always ready and excited to help answer 
-        your questions. How can I help you today?""",
+        "default": "This is a sample response from the chatbot."
     }
     
     question_lower = question.lower().strip()
@@ -132,8 +141,7 @@ def hardcoded_chatbot(question: str) -> Generator[str, None, None]:
             break
     
     if response is None:
-        response = """That's an interesting question! I can help you with questions about artificial intelligence, 
-        machine learning, and technology. Feel free to ask me about these topics!"""
+        response = """llm is not working!"""
     
     # Stream response word by word (3-4 words at a time for natural feel)
     words = response.split()
@@ -145,7 +153,6 @@ def hardcoded_chatbot(question: str) -> Generator[str, None, None]:
 
 
 # Removed - now using direct generator from hardcoded_chatbot
-
 
 async def text_to_audio_edge_async(text: str, output_path: str, voice: str = "en-US-AriaNeural"):
     """Convert text to audio using Edge TTS."""
@@ -161,12 +168,51 @@ def text_to_audio_gtts(text: str, output_path: str):
     tts.save(output_path)
 
 
+# def text_to_audio_pyttsx3(text: str, output_path: str):
+#     """Convert text to audio using pyttsx3 (offline)."""
+#     import pyttsx3
+#     import time
+#     engine = pyttsx3.init()
+#     voices = engine.getProperty('voices')
+#     if voices:
+#         engine.setProperty('voice', voices[0].id)
+#     engine.save_to_file(text, output_path)
+#     engine.runAndWait()
+#     time.sleep(0.2)  # Ensure file is written
+#     import os
+#     if not os.path.exists(output_path):
+#         raise Exception(f"Failed to create audio file: {output_path}")
 def text_to_audio_pyttsx3(text: str, output_path: str):
-    """Convert text to audio using pyttsx3 (offline)."""
+    """Convert text to audio using pyttsx3 with optimized male English voice."""
     import pyttsx3
+    import time
+
+    # Initialize the TTS engine
     engine = pyttsx3.init()
+
+    # Get available voices
+    voices = engine.getProperty('voices')
+
+    # Set a male English voice — adjust index if you prefer a different one
+    # e.g., voices[17] for "english-us", voices[15] for "english_rp", etc.
+    voice_index = 17  # english-us
+    if len(voices) > voice_index:
+        engine.setProperty('voice', voices[voice_index].id)
+
+    # Set speaking rate (words per minute)
+    engine.setProperty('rate', 150)  # a more natural speaking rate
+
+    # Set volume (0.0 to 1.0)
+    engine.setProperty('volume', 0.9)
+
+    # Save speech to audio file
     engine.save_to_file(text, output_path)
+
+    # Run engine to process and save file
     engine.runAndWait()
+
+    # Slight pause to ensure file finishes writing
+    time.sleep(0.3)
 
 
 def text_to_audio(text: str, output_path: str):
@@ -212,43 +258,128 @@ def text_to_audio(text: str, output_path: str):
 
 def generate_video(audio_path: str, output_path: str, avatar_path: str):
     """Generate lip-synced video using Wav2Lip with GPU acceleration."""
-    if not WAV2LIP_PATH.exists() or not WAV2LIP_CHECKPOINT.exists():
-        print("⚠️ Wav2Lip not configured, skipping video generation")
-        return False
+    print(f"\n{'='*70}")
+    print(f"VIDEO GENERATION - DEBUG")
+    print(f"{'='*70}")
     
-    # Create temp directory for Wav2Lip (required for audio processing)
+    # Check Wav2Lip
+    print(f"1. Checking Wav2Lip setup...")
+    if not WAV2LIP_PATH.exists():
+        print(f"   ✗ Wav2Lip path not found: {WAV2LIP_PATH}")
+        return False
+    print(f"   ✓ Wav2Lip path: {WAV2LIP_PATH}")
+    
+    if not WAV2LIP_CHECKPOINT.exists():
+        print(f"   ✗ Checkpoint not found: {WAV2LIP_CHECKPOINT}")
+        return False
+    print(f"   ✓ Checkpoint: {WAV2LIP_CHECKPOINT}")
+    
+    # Check inference script
+    inference_script = WAV2LIP_PATH / "inference.py"
+    if not inference_script.exists():
+        print(f"   ✗ Inference script not found: {inference_script}")
+        return False
+    print(f"   ✓ Inference script: {inference_script}")
+    
+    # Check inputs
+    print(f"\n2. Checking input files...")
+    if not os.path.exists(audio_path):
+        print(f"   ✗ Audio not found: {audio_path}")
+        return False
+    audio_size = os.path.getsize(audio_path)
+    print(f"   ✓ Audio: {audio_path} ({audio_size} bytes)")
+    
+    if not os.path.exists(avatar_path):
+        print(f"   ✗ Avatar not found: {avatar_path}")
+        return False
+    avatar_size = os.path.getsize(avatar_path)
+    print(f"   ✓ Avatar: {avatar_path} ({avatar_size} bytes)")
+    
+    # Create temp directory
+    print(f"\n3. Creating temp directory...")
     temp_dir = WAV2LIP_PATH / "temp"
     temp_dir.mkdir(exist_ok=True)
+    print(f"   ✓ Temp dir: {temp_dir}")
     
-    inference_script = WAV2LIP_PATH / "inference.py"
+    # Build command with absolute paths
+    print(f"\n4. Building command...")
     
-    # Force GPU usage
+    # Convert all paths to absolute
+    abs_checkpoint = os.path.abspath(str(WAV2LIP_CHECKPOINT))
+    abs_avatar = os.path.abspath(avatar_path)
+    abs_audio = os.path.abspath(audio_path)
+    abs_output = os.path.abspath(output_path)
+    
     cmd = [
         sys.executable,
-        str(inference_script),
-        "--checkpoint_path", str(WAV2LIP_CHECKPOINT),
-        "--face", avatar_path,
-        "--audio", audio_path,
-        "--outfile", output_path,
+        "inference.py",  # Relative to Wav2Lip directory
+        "--checkpoint_path", abs_checkpoint,
+        "--face", abs_avatar,
+        "--audio", abs_audio,
+        "--outfile", abs_output,
         "--pads", "0", "10", "0", "0",
-        "--nosmooth"  # Faster processing
+        "--nosmooth"
     ]
+    print(f"   Working dir: {WAV2LIP_PATH}")
+    print(f"   Command: {' '.join(cmd)}")
     
-    # Set environment to force GPU usage
+    # Set environment
     env = os.environ.copy()
     env['CUDA_VISIBLE_DEVICES'] = '0'
+    print(f"   GPU Device: {env['CUDA_VISIBLE_DEVICES']}")
     
+    # Run Wav2Lip
+    print(f"\n5. Running Wav2Lip (timeout: 30s)...")
     try:
         result = subprocess.run(
             cmd, 
             capture_output=True, 
             text=True, 
-            timeout=30,  # Reduced timeout for GPU
-            env=env
+            timeout=30,
+            env=env,
+            cwd=str(WAV2LIP_PATH)  # Run from Wav2Lip directory
         )
-        return result.returncode == 0
+        
+        print(f"\n6. Process completed")
+        print(f"   Return code: {result.returncode}")
+        
+        if result.stdout:
+            print(f"\n   STDOUT:")
+            for line in result.stdout.split('\n')[:20]:  # First 20 lines
+                print(f"   {line}")
+        
+        if result.stderr:
+            print(f"\n   STDERR:")
+            for line in result.stderr.split('\n')[:20]:  # First 20 lines
+                print(f"   {line}")
+        
+        # Check output
+        print(f"\n7. Checking output...")
+        if os.path.exists(output_path):
+            out_size = os.path.getsize(output_path)
+            print(f"   ✓ Output created: {output_path} ({out_size} bytes)")
+            if out_size > 1000:
+                print(f"   ✓ SUCCESS - Video generated")
+                print(f"{'='*70}\n")
+                return True
+            else:
+                print(f"   ✗ FAILED - File too small (corrupted)")
+                print(f"{'='*70}\n")
+                return False
+        else:
+            print(f"   ✗ FAILED - Output file not created")
+            print(f"{'='*70}\n")
+            return False
+            
+    except subprocess.TimeoutExpired:
+        print(f"\n✗ TIMEOUT - Process took >30s")
+        print(f"{'='*70}\n")
+        return False
     except Exception as e:
-        print(f"Video generation error: {e}")
+        print(f"\n✗ EXCEPTION: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        print(f"{'='*70}\n")
         return False
 
 
