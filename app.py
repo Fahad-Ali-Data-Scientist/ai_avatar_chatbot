@@ -26,7 +26,14 @@ import threading
 import cv2
 import numpy as np
 from queue import Queue
+import requests
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
+# ========== CONFIGURATION ==========
+USE_OLLAMA = True  # Set to True to use Ollama, False for hardcoded responses
+OLLAMA_MODEL = "gemma2:9b-instruct-q4_K_M"  # Model name
+OLLAMA_URL = "http://localhost:11434/api/generate"  # Ollama API endpoint
+# ===================================
 # Import TTS libraries with fallback support
 TTS_ENGINE = None
 try:
@@ -101,6 +108,63 @@ def create_avatar_image():
         
         cv2.imwrite(str(AVATAR_IMAGE_PATH), img)
     return str(AVATAR_IMAGE_PATH)
+
+
+def ollama_chatbot(question: str) -> Generator[str, None, None]:
+    """
+    Generate streaming response from Ollama model.
+    Yields text chunks (3-4 words) for natural streaming.
+    """
+    try:
+        payload = {
+            "model": OLLAMA_MODEL,
+            "prompt": question,
+            "stream": True
+        }
+        
+        response = requests.post(OLLAMA_URL, json=payload, stream=True, timeout=60)
+        response.raise_for_status()
+        
+        buffer = ""
+        word_count = 0
+        chunk_size = 3
+        
+        for line in response.iter_lines():
+            if line:
+                try:
+                    data = json.loads(line.decode('utf-8'))
+                    if 'response' in data:
+                        token = data['response']
+                        buffer += token
+                        
+                        # Split by spaces to count words
+                        words = buffer.split()
+                        if len(words) >= chunk_size:
+                            # Yield chunk
+                            chunk = ' '.join(words[:chunk_size]) + ' '
+                            yield chunk
+                            buffer = ' '.join(words[chunk_size:])
+                            word_count = 0
+                        
+                        # Handle end of response
+                        if data.get('done', False):
+                            if buffer.strip():
+                                yield buffer + ' '
+                            break
+                            
+                except json.JSONDecodeError:
+                    continue
+        
+        # Yield any remaining text
+        if buffer.strip():
+            yield buffer + ' '
+            
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Ollama API error: {e}")
+        yield "I'm having trouble connecting to the AI model. Please check if Ollama is running. "
+    except Exception as e:
+        print(f"❌ Error in Ollama chatbot: {e}")
+        yield "An error occurred while processing your request. "
 
 
 def hardcoded_chatbot(question: str) -> Generator[str, None, None]:
@@ -469,8 +533,9 @@ def ask():
             # Send session ID immediately
             yield f"data: {json.dumps({'type': 'session_id', 'session_id': session_id})}\n\n"
             
-            # Stream text word by word from generator
-            for chunk in hardcoded_chatbot(question):
+            # Stream text word by word from generator (Ollama or hardcoded)
+            chatbot_fn = ollama_chatbot if USE_OLLAMA else hardcoded_chatbot
+            for chunk in chatbot_fn(question):
                 full_text_parts.append(chunk)
                 yield f"data: {json.dumps({'type': 'text', 'content': chunk})}\n\n"
             
@@ -582,6 +647,21 @@ if __name__ == '__main__':
         print(f"🎭 Avatar: Creating fallback avatar...")
         create_avatar_image()
         print(f"   ⚠️ Using fallback avatar at: {AVATAR_IMAGE_PATH}")
+    
+    # Check Ollama configuration
+    if USE_OLLAMA:
+        print(f"🤖 AI Model: Ollama ({OLLAMA_MODEL})")
+        print(f"   Endpoint: {OLLAMA_URL}")
+        try:
+            test_response = requests.get("http://localhost:11434/api/tags", timeout=2)
+            if test_response.status_code == 200:
+                print(f"   ✅ Ollama is running")
+            else:
+                print(f"   ⚠️ Ollama responded with status {test_response.status_code}")
+        except Exception as e:
+            print(f"   ❌ Ollama not responding - run: ./setup_ollama.sh")
+    else:
+        print(f"🤖 AI Model: Hardcoded responses (fallback mode)")
     
     # Check TTS Engine
     if TTS_ENGINE:
